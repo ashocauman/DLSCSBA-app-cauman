@@ -1,3 +1,4 @@
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -35,6 +36,7 @@ namespace SchoolApp.Controllers
 
             var student = await _context.Student
                 .FirstOrDefaultAsync(m => m.StudentId == id);
+
             if (student == null)
             {
                 return NotFound();
@@ -50,18 +52,28 @@ namespace SchoolApp.Controllers
         }
 
         // POST: Students/Create
-        // To protect from overposting attacks, enable the specific properties you want to bind to.
-        // For more details, see http://go.microsoft.com/fwlink/?LinkId=317598.
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Create([Bind("StudentId,StudentNo,Name,Email,Phone,Age,BirthDate")] Student student)
+        public async Task<IActionResult> Create(
+            [Bind("StudentId,StudentNo,Name,Email,ConfirmEmail,Phone,Age,BirthDate")]
+            Student student)
         {
+            // Check whether the email is already registered.
+            if (await _context.Student.AnyAsync(s => s.Email == student.Email))
+            {
+                ModelState.AddModelError(
+                    "Email",
+                    "This email is already registered.");
+            }
+
             if (ModelState.IsValid)
             {
                 _context.Add(student);
                 await _context.SaveChangesAsync();
+
                 return RedirectToAction(nameof(Index));
             }
+
             return View(student);
         }
 
@@ -74,23 +86,37 @@ namespace SchoolApp.Controllers
             }
 
             var student = await _context.Student.FindAsync(id);
+
             if (student == null)
             {
                 return NotFound();
             }
+
             return View(student);
         }
 
         // POST: Students/Edit/5
-        // To protect from overposting attacks, enable the specific properties you want to bind to.
-        // For more details, see http://go.microsoft.com/fwlink/?LinkId=317598.
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Edit(int id, [Bind("StudentId,StudentNo,Name,Email,Phone,Age,BirthDate")] Student student)
+        public async Task<IActionResult> Edit(
+            int id,
+            [Bind("StudentId,StudentNo,Name,Email,ConfirmEmail,Phone,Age,BirthDate")]
+            Student student)
         {
             if (id != student.StudentId)
             {
                 return NotFound();
+            }
+
+            // Check whether another student already uses this email.
+            // The current student's own record is excluded.
+            if (await _context.Student.AnyAsync(s =>
+                s.Email == student.Email &&
+                s.StudentId != student.StudentId))
+            {
+                ModelState.AddModelError(
+                    "Email",
+                    "This email is already registered.");
             }
 
             if (ModelState.IsValid)
@@ -111,8 +137,10 @@ namespace SchoolApp.Controllers
                         throw;
                     }
                 }
+
                 return RedirectToAction(nameof(Index));
             }
+
             return View(student);
         }
 
@@ -126,6 +154,7 @@ namespace SchoolApp.Controllers
 
             var student = await _context.Student
                 .FirstOrDefaultAsync(m => m.StudentId == id);
+
             if (student == null)
             {
                 return NotFound();
@@ -140,12 +169,14 @@ namespace SchoolApp.Controllers
         public async Task<IActionResult> DeleteConfirmed(int id)
         {
             var student = await _context.Student.FindAsync(id);
+
             if (student != null)
             {
                 _context.Student.Remove(student);
             }
 
             await _context.SaveChangesAsync();
+
             return RedirectToAction(nameof(Index));
         }
 
